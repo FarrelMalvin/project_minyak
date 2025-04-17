@@ -26,7 +26,7 @@ func SalesRecap(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var args []interface{}
 	if startDate != "" && endDate != "" {
-		query += " WHERE DATE(td.date_time) BETWEEN ? AND ?"
+		query += " WHERE DATE(td.date_time) BETWEEN $1 AND $2"
 		args = append(args, startDate, endDate)
 	}
 

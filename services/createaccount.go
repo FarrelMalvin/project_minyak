@@ -38,7 +38,7 @@ func CreateAccount(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Insert to database
-		query := "INSERT INTO user (email, firstname, lastname, username, password, role) VALUES (?, ?, ?, ?, ?, ?)"
+		query := `INSERT INTO "user" (email, firstname, lastname, username, password, role) VALUES ($1, $2, $3, $4, $5, $6)`
 		_, err = db.Exec(query, user.Email, user.Firstname, user.Lastname, user.Username, user.Password, user.Role)
 		if err != nil {
 			http.Error(w, "Failed to register user", http.StatusInternalServerError)

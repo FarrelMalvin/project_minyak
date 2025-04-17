@@ -38,7 +38,7 @@ func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	// Insert product into the database
-	productQuery := "INSERT INTO product (Product_name, price, note) VALUES (?, ?, ?)"
+	productQuery := `INSERT INTO "product" (Product_name, price, note) VALUES ($1, $2, $3)`
 	result, err := tx.Exec(productQuery, requestData.Product.ProductName, requestData.Product.Price, requestData.Product.Note)
 	if err != nil {
 		tx.Rollback()
@@ -58,7 +58,7 @@ func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	requestData.Stock.ProductID = uint(productID)
 
 	// Insert stock into the database
-	stockQuery := "INSERT INTO stock (Product_ID, Stock) VALUES (?, ?)"
+	stockQuery := `INSERT INTO "stock" (Product_ID, Stock) VALUES ($1, $2)`
 	_, err = tx.Exec(stockQuery, requestData.Stock.ProductID, requestData.Stock.Stock)
 	if err != nil {
 		tx.Rollback()
@@ -102,7 +102,8 @@ func UpdateProductStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	query := "UPDATE stock SET stock=? WHERE product_id=?"
+	query := `UPDATE stock SET stock = $1 WHERE product_id = $2`
+
 	_, err = db.Exec(query, stock.Stock, stock.ProductID)
 	if err != nil {
 		http.Error(w, "Failed to update stock", http.StatusInternalServerError)

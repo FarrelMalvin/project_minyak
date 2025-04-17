@@ -39,8 +39,8 @@ func SignUp(db *sql.DB) http.HandlerFunc {
 
 		user.Role = "Customer"
 
-		query := "INSERT INTO user (firstname, lastname, username, password, role) VALUES (?, ?, ?, ?, ?)"
-		_, err = db.Exec(query, user.Firstname, user.Lastname, user.Username, user.Password, user.Role)
+		query := "INSERT INTO user (firstname, lastname, email, username, password, role) VALUES ($1, $2, $3, $4, $5, $6)"
+		_, err = db.Exec(query, user.Firstname, user.Lastname, user.Email, user.Username, user.Password, user.Role)
 		if err != nil {
 			http.Error(w, "Failed to register user", http.StatusInternalServerError)
 

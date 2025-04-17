@@ -39,7 +39,7 @@ func ViewTransaction(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			t.product_id, p.product_name, t.status_transaction
 		FROM transaction t
 		INNER JOIN product p ON t.product_id = p.product_id
-		WHERE t.user_id = ?
+		WHERE t.user_id = $1
 	`
 
 	rows, err := db.Query(query, userID)

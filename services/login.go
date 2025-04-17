@@ -31,7 +31,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 
 		var hashedPassword, role string
 		var userID int
-		query := "SELECT User_ID, password, role FROM user WHERE username = ?"
+		query := `SELECT User_ID, password, role FROM "user" WHERE username = $1`
 		err = db.QueryRow(query, creds.Username).Scan(&userID, &hashedPassword, &role)
 		if err != nil {
 			http.Error(w, "Invalid username or password", http.StatusUnauthorized)

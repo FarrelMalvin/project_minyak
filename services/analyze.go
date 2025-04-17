@@ -77,8 +77,8 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 		isTop := cumulative <= 80.0 // Pareto: 80/20 rule
 
 		_, err := db.Exec(`
-			INSERT INTO analytic (Product_ID, Analytic_result, Contribution, Is_Top_20, Analytic_time)
-			VALUES (?, ?, ?, ?, ?)`,
+			INSERT INTO "analytic" (Product_ID, Analytic_result, Contribution, Is_Top_20, Analytic_time)
+			VALUES ($1, $2, $3, $4, $5)`,
 			t.data.ProductID, t.data.AnalyticResult, contribution, isTop, time.Now(),
 		)
 		if err != nil {
