@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"project_minyak/models"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,10 @@ func AnalyzeAllProductsHandler(db *sql.DB) http.HandlerFunc {
 
 		// Parse result Gemini jadi struct
 		analytics := ParseGeminiResult(result)
+		if analytics == nil {
+			http.Error(w, "Failed to parse Gemini response", http.StatusInternalServerError)
+			return
+		}
 
 		// Simpan ke DB
 		if err := SaveParetoAnalysisToDB(db, analytics); err != nil {
@@ -42,7 +47,6 @@ func AnalyzeAllProductsHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
-	// Langkah 1: Hitung total kontribusi dari semua produk
 	var totalRevenue float64
 	type temp struct {
 		data    models.AnalyticData
@@ -52,21 +56,20 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 
 	for _, a := range analytics {
 		var revenue float64
-		_, err := fmt.Sscanf(a.AnalyticResult, "Total Quantity Sold: %d, Total Revenue: %f, Profit: %f", new(int), &revenue, new(float64))
+		_, err := fmt.Sscanf(a.AnalyticResult, `{"Product ID":%d,"Product Name":"%s","Total Quantity Sold":%d,"Total Revenue":%f,"Profit":%f,"Top 20%%":%t}`,
+			new(int), new(string), new(int), &revenue, new(float64), new(bool))
 		if err != nil {
 			log.Printf("Failed to parse analytic result for product %d: %v", a.ProductID, err)
-			continue
+			revenue = a.Revenue // fallback ke nilai langsung
 		}
 		totalRevenue += revenue
 		tempData = append(tempData, temp{data: a, revenue: revenue})
 	}
 
-	// Langkah 2: Urutkan berdasarkan revenue tertinggi
 	sort.Slice(tempData, func(i, j int) bool {
 		return tempData[i].revenue > tempData[j].revenue
 	})
 
-	// Langkah 3: Hitung kontribusi dan tandai top 20%
 	var cumulative float64
 	for _, t := range tempData {
 		contribution := (t.revenue / totalRevenue) * 100
@@ -86,7 +89,20 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 	return nil
 }
 
+// Clean markdown/json formatting
+func cleanJSONResult(result string) string {
+	result = strings.TrimSpace(result)
+	if strings.HasPrefix(result, "```") {
+		result = strings.TrimPrefix(result, "```json")
+		result = strings.TrimPrefix(result, "```")
+		result = strings.TrimSuffix(result, "```")
+	}
+	return strings.TrimSpace(result)
+}
+
 func ParseGeminiResult(result string) []models.AnalyticData {
+	result = cleanJSONResult(result)
+
 	var raw []map[string]interface{}
 	err := json.Unmarshal([]byte(result), &raw)
 	if err != nil {
@@ -106,7 +122,7 @@ func ParseGeminiResult(result string) []models.AnalyticData {
 			isTop = val.(bool)
 		}
 
-		resultStr, _ := json.Marshal(item) // optional string hasil mentah
+		resultStr, _ := json.Marshal(item)
 		data = append(data, models.AnalyticData{
 			ProductID:      prodID,
 			ProductName:    prodName,
