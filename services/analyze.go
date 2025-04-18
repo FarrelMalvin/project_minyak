@@ -92,12 +92,30 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 // Clean markdown/json formatting
 func cleanJSONResult(result string) string {
 	result = strings.TrimSpace(result)
+
+	// Cek apakah ada blok kode markdown
 	if strings.HasPrefix(result, "```") {
-		result = strings.TrimPrefix(result, "```json")
-		result = strings.TrimPrefix(result, "```")
-		result = strings.TrimSuffix(result, "```")
+		// Cari blok antara tiga backtick
+		start := strings.Index(result, "[")
+		end := strings.LastIndex(result, "]") + 1
+		if start >= 0 && end > start {
+			return result[start:end]
+		}
 	}
-	return strings.TrimSpace(result)
+
+	// Jika tidak dalam blok markdown tapi masih JSON array biasa
+	if strings.HasPrefix(result, "[") && strings.HasSuffix(result, "]") {
+		return result
+	}
+
+	// Coba ambil substring dari [ sampai ] jika JSON tersembunyi di tengah narasi
+	start := strings.Index(result, "[")
+	end := strings.LastIndex(result, "]") + 1
+	if start >= 0 && end > start {
+		return result[start:end]
+	}
+
+	return ""
 }
 
 func ParseGeminiResult(result string) []models.AnalyticData {

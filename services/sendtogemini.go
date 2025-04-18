@@ -14,11 +14,20 @@ func SendToGeminiForAnalysis(recaps []models.Recap) (string, error) {
 
 	// Langkah 1: Format prompt dan data
 	recapJSON, _ := json.Marshal(recaps)
-	prompt := `Tolong lakukan analisis Pareto (80/20 rule) dari data penjualan berikut. Tampilkan hasilnya dalam format seperti ini, satu baris per produk:
+	prompt := `Tolong lakukan analisis Pareto dari data penjualan berikut. 
+Berikan hasil *hanya* dalam bentuk JSON array seperti contoh berikut, tanpa penjelasan tambahan, tanpa markdown, tanpa teks lain:
 
-Product ID: <int>, Product Name: <string>, Total Quantity Sold: <int>, Total Revenue: <float>, Profit: <float> Top 20%
-
-Gunakan format yang konsisten agar bisa dibaca oleh program secara otomatis.`
+[
+  {
+    "Product ID": 1,
+    "Product Name": "Contoh",
+    "Total Quantity Sold": 10,
+    "Total Revenue": 10000.0,
+    "Profit": 2000.0,
+    "Top 20%": true
+  },
+  ...
+]`
 
 	// Payload format baru sesuai dokumentasi Gemini
 	payload := map[string]interface{}{
