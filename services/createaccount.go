@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"project_minyak/models"
+	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // SignUp Handler for user registration
@@ -30,9 +34,11 @@ func CreateAccount(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		user.Password = hashedPassword
+		c := cases.Title(language.English)
+		user.Role = c.String(strings.ToLower(user.Role))
 
 		// Validate role input
-		if user.Role != "Admin" && user.Role != "Manager" && user.Role != "Customer" {
+		if user.Role != "Admin" && user.Role != "Manager" && user.Role != "Sales" {
 			http.Error(w, "Invalid role", http.StatusBadRequest)
 			return
 		}

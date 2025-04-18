@@ -102,6 +102,7 @@ func cleanJSONResult(result string) string {
 
 func ParseGeminiResult(result string) []models.AnalyticData {
 	result = cleanJSONResult(result)
+	log.Println("Gemini RAW Response:", result)
 
 	var raw []map[string]interface{}
 	err := json.Unmarshal([]byte(result), &raw)
