@@ -27,9 +27,9 @@ func InsertRawMaterial(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		http.Error(w, "Failed to begin transaction", http.StatusInternalServerError)
 		return
 	}
+	query := `INSERT INTO raw_material (raw_material_name, price, supplier) VALUES ($1, $2, $3)`
+	_, err = tx.Exec(query, rawMaterial.RawMaterialName, rawMaterial.Price, rawMaterial.Supplier)
 
-	productQuery := "INSERT INTO raw_material (raw_material_name, price, supplier) VALUES (?, ?, ?)"
-	_, err = tx.Exec(productQuery, rawMaterial.RawMaterialName, rawMaterial.Price, rawMaterial.Supplier)
 	if err != nil {
 		tx.Rollback()
 		log.Printf("Failed to insert raw_material: %v", err)
@@ -54,7 +54,7 @@ func GetRawMaterialsSorted(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	query := "SELECT raw_material_name, price, supplier FROM raw_material ORDER BY raw_material_name ASC, price ASC"
+	query := `SELECT raw_material_name, price, supplier FROM "raw_material" ORDER BY raw_material_name ASC, price ASC`
 
 	rows, err := db.Query(query)
 	if err != nil {
