@@ -37,9 +37,10 @@ func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	// Insert product into the database
-	productQuery := `INSERT INTO "product" (Product_name, price, note) VALUES ($1, $2, $3)`
-	result, err := tx.Exec(productQuery, requestData.Product.ProductName, requestData.Product.Price, requestData.Product.Note)
+	// Insert product into the database using RETURNING
+	productQuery := `INSERT INTO "product" (Product_name, price, note) VALUES ($1, $2, $3) RETURNING product_id`
+	var productID uint
+	err = tx.QueryRow(productQuery, requestData.Product.ProductName, requestData.Product.Price, requestData.Product.Note).Scan(&productID)
 	if err != nil {
 		tx.Rollback()
 		log.Printf("Failed to insert product: %v", err)
@@ -47,15 +48,7 @@ func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	productID, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		log.Printf("Failed to get product_id: %v", err)
-		http.Error(w, "Failed to get product_id", http.StatusInternalServerError)
-		return
-	}
-
-	requestData.Stock.ProductID = uint(productID)
+	requestData.Stock.ProductID = productID
 
 	// Insert stock into the database
 	stockQuery := `INSERT INTO "stock" (Product_ID, Stock) VALUES ($1, $2)`
