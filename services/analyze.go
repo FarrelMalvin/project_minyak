@@ -7,10 +7,7 @@ import (
 	"log"
 	"net/http"
 	"project_minyak/models"
-	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -90,37 +87,34 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 }
 
 func ParseGeminiResult(result string) []models.AnalyticData {
-	lines := strings.Split(result, "\n")
+	var raw []map[string]interface{}
+	err := json.Unmarshal([]byte(result), &raw)
+	if err != nil {
+		log.Println("Failed to parse Gemini result as JSON:", err)
+		return nil
+	}
+
 	var data []models.AnalyticData
-	log.Println("Gemini raw output:\n", result)
-
-	// Regex pattern
-	pattern := regexp.MustCompile(`(?i)Product ID:\s*(\d+),\s*Product Name:\s*([^,]+),\s*Total Quantity Sold:\s*(\d+),\s*Total Revenue:\s*([\d.]+),\s*Profit:\s*([\d.]+)(.*)?`)
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		match := pattern.FindStringSubmatch(line)
-		if match == nil || len(match) < 6 {
-			log.Println("Parsing error: input does not match format ->", line)
-			continue
+	for _, item := range raw {
+		prodID := int(item["Product ID"].(float64))
+		prodName := item["Product Name"].(string)
+		quantity := int(item["Total Quantity Sold"].(float64))
+		revenue := item["Total Revenue"].(float64)
+		profit := item["Profit"].(float64)
+		isTop := false
+		if val, ok := item["Top 20%"]; ok {
+			isTop = val.(bool)
 		}
 
-		prodID, _ := strconv.Atoi(match[1])
-		quantity, _ := strconv.Atoi(match[3])
-		revenue, _ := strconv.ParseFloat(match[4], 64)
-		profit, _ := strconv.ParseFloat(match[5], 64)
-		isTop := strings.Contains(strings.ToLower(match[6]), "top")
-
+		resultStr, _ := json.Marshal(item) // optional string hasil mentah
 		data = append(data, models.AnalyticData{
 			ProductID:      prodID,
-			ProductName:    match[2],
+			ProductName:    prodName,
 			Quantity:       quantity,
 			Revenue:        revenue,
 			Profit:         profit,
 			IsTop20:        isTop,
-			AnalyticResult: line,
+			AnalyticResult: string(resultStr),
 		})
 	}
 	return data

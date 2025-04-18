@@ -26,7 +26,8 @@ func InitDB() {
 	port := os.Getenv("DB_PORT")
 	dbname := os.Getenv("DB_NAME")
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, password, host, port, dbname)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?statement_cache_mode=describe", user, password, host, port, dbname)
+
 	fmt.Println("Connecting to:", dsn)
 
 	db, err := sql.Open("pgx", dsn)
