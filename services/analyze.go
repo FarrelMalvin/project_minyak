@@ -131,15 +131,12 @@ func ParseGeminiResult(result string) []models.AnalyticData {
 
 	var data []models.AnalyticData
 	for _, item := range raw {
-		prodID := int(item["Product ID"].(float64))
-		prodName := item["Product Name"].(string)
-		quantity := int(item["Total Quantity Sold"].(float64))
-		revenue := item["Total Revenue"].(float64)
-		profit := item["Profit"].(float64)
-		isTop := false
-		if val, ok := item["Top 20%"]; ok {
-			isTop = val.(bool)
-		}
+		prodID := toInt(item["Product ID"])
+		prodName := toString(item["Product Name"])
+		quantity := toInt(item["Total Quantity Sold"])
+		revenue := toFloat(item["Total Revenue"])
+		profit := toFloat(item["Profit"])
+		isTop := toBool(item["Top 20%"])
 
 		resultStr, _ := json.Marshal(item)
 		data = append(data, models.AnalyticData{
@@ -153,4 +150,32 @@ func ParseGeminiResult(result string) []models.AnalyticData {
 		})
 	}
 	return data
+}
+
+func toInt(v interface{}) int {
+	if val, ok := v.(float64); ok {
+		return int(val)
+	}
+	return 0
+}
+
+func toFloat(v interface{}) float64 {
+	if val, ok := v.(float64); ok {
+		return val
+	}
+	return 0
+}
+
+func toString(v interface{}) string {
+	if val, ok := v.(string); ok {
+		return val
+	}
+	return ""
+}
+
+func toBool(v interface{}) bool {
+	if val, ok := v.(bool); ok {
+		return val
+	}
+	return false
 }
