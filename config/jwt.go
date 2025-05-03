@@ -11,17 +11,15 @@ import (
 var JwtSecret = []byte("secret_key")
 
 type UserClaims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	UserID   int    `json:"user_id"`
+	UserID int    `json:"user_id"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(username, role string, userID int) (string, error) {
+func GenerateJWT(role string, userID int) (string, error) {
 	claims := UserClaims{
-		Username: username,
-		Role:     role,
-		UserID:   userID,
+		Role:   role,
+		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},
