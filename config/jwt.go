@@ -13,13 +13,17 @@ var JwtSecret = []byte("secret_key")
 type UserClaims struct {
 	UserID int    `json:"user_id"`
 	Role   string `json:"role"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(role string, userID int) (string, error) {
+func GenerateJWT(role string, userID int, name string, email string) (string, error) {
 	claims := UserClaims{
 		Role:   role,
 		UserID: userID,
+		Name:   name,
+		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},

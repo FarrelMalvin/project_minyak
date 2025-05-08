@@ -8,14 +8,16 @@ import (
 	"project_minyak/services"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(db *sql.DB) *mux.Router {
+func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 	router := mux.NewRouter()
 
 	// Auth routes
 	router.HandleFunc("/signup", services.SignUp(db)).Methods("POST")
 	router.HandleFunc("/login", services.LoginHandler(db)).Methods("POST")
+	router.HandleFunc("/midtrans/webhook", services.MidtransWebhookHandler(gormDB)).Methods("POST")
 
 	// ADMIN ROUTES
 	adminRoutes := router.PathPrefix("/admin").Subrouter()
@@ -52,16 +54,17 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	customerRoutes.HandleFunc("/transactions", func(w http.ResponseWriter, r *http.Request) {
 		services.ViewTransaction(w, r, db)
 	}).Methods("GET")
+	customerRoutes.HandleFunc("/checkout", services.CheckoutHandler(gormDB)).Methods("POST")
 
 	// ADMIN bisa akses semua route sales dan manager
 	copyRoutes(adminRoutes, salesRoutes, middleware.AdminMiddleware)
 	copyRoutes(adminRoutes, managerRoutes, middleware.AdminMiddleware)
 
 	// MIDTRANS CALLBACK
-	paymentRoutes := router.PathPrefix("/payment").Subrouter()
+	/*paymentRoutes := router.PathPrefix("/payment").Subrouter()
 	paymentRoutes.HandleFunc("/midtrans/callback", func(w http.ResponseWriter, r *http.Request) {
 		services.UpdateTransactionStatus(w, r, db)
-	}).Methods("POST")
+	}).Methods("POST")*/
 
 	return router
 }
