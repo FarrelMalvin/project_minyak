@@ -98,12 +98,16 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 			http.Error(w, "Failed to create Midtrans transaction", http.StatusInternalServerError)
 			return
 		}
-
-		// Sukses: kirim response ke frontend
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		// Sukses: kirim response ke frontend atau Postman
+		response := map[string]string{
+			"message":      "Transaksi berhasil dibuat",
 			"token":        snapResp.Token,
 			"redirect_url": snapResp.RedirectURL,
-		})
+		}
+		log.Println("✅ Midtrans redirect URL:", snapResp.RedirectURL)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 	}
 }
