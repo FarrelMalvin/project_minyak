@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"project_minyak/routes"
-	"project_minyak/services"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -74,16 +73,12 @@ func InitGormDB() {
 
 func main() {
 	InitDB()
+	InitGormDB()
 
-	r := routes.SetupRoutes(DB)
-
-	// Endpoint Midtrans
-	r.HandleFunc("/checkout", services.CheckoutHandler).Methods("POST")
-
-	// Tambahkan ini paling bawah agar tidak override /checkout
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir(".")))
+	r := routes.SetupRoutes(DB, GormDB)
 
 	port := ":9090"
 	fmt.Println("Server running on port", port)
+
 	log.Fatal(http.ListenAndServe(port, r))
 }
