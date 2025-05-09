@@ -98,6 +98,8 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 			http.Error(w, "Failed to create Midtrans transaction", http.StatusInternalServerError)
 			return
 		}
+		cleanRedirectURL := strings.TrimSpace(snapResp.RedirectURL)
+		cleanRedirectURL = strings.TrimSuffix(cleanRedirectURL, ";")
 		// Sukses: kirim response ke frontend atau Postman
 		response := map[string]string{
 			"message":      "Transaksi berhasil dibuat",
