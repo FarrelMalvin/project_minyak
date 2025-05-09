@@ -6,3 +6,8 @@ type Stock struct {
 	Stock     int     `gorm:"not null" json:"stock"`
 	Product   Product `gorm:"foreignKey:ProductID" json:"product"`
 }
+
+func (Stock) TableName() string {
+	return "stock"
+}
+
