@@ -11,6 +11,7 @@ type Transaction struct {
 	User              User    `gorm:"foreignKey:UserID" json:"user"`
 }
 
-func (TransactionDetail) TableName() string {
-	return "transaction_detail"
+func (Transaction) TableName() string {
+	return "transaction"
 }
+
