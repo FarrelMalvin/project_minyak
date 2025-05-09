@@ -91,25 +91,26 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 				Email: customerEmail,
 			},
 		}
-
 		snapResp, err := snapClient.CreateTransaction(params)
 		if err != nil || snapResp == nil {
 			log.Printf("❌ Midtrans error: %v\n", err)
 			http.Error(w, "Failed to create Midtrans transaction", http.StatusInternalServerError)
 			return
 		}
-		cleanRedirectURL := strings.TrimSpace(snapResp.RedirectURL)
-		cleanRedirectURL = strings.TrimSuffix(cleanRedirectURL, ";")
-		// Sukses: kirim response ke frontend atau Postman
+
+		cleanRedirectURL := strings.TrimRight(strings.TrimSpace(snapResp.RedirectURL), "; \t\n\r")
+
 		response := map[string]string{
 			"message":      "Transaksi berhasil dibuat",
 			"token":        snapResp.Token,
-			"redirect_url": snapResp.RedirectURL,
+			"redirect_url": cleanRedirectURL,
 		}
-		log.Println("✅ Midtrans redirect URL:", snapResp.RedirectURL)
+
+		log.Println("✅ Midtrans redirect URL (cleaned):", cleanRedirectURL)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
+
 	}
 }
