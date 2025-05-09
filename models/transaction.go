@@ -10,3 +10,7 @@ type Transaction struct {
 	Product           Product `gorm:"foreignKey:ProductID" json:"product"`
 	User              User    `gorm:"foreignKey:UserID" json:"user"`
 }
+
+func (TransactionDetail) TableName() string {
+	return "transaction_detail"
+}
