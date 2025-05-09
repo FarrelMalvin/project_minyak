@@ -6,3 +6,7 @@ type Product struct {
 	Price       float64 `gorm:"type:decimal(10,2);not null" json:"price"`
 	Note        string  `json:"note"`
 }
+
+func (Product) TableName() string {
+	return "product"
+}
