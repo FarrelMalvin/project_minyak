@@ -47,7 +47,7 @@ func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
 			var details []models.TransactionDetail
 			db.Where("transaction_id = ?", transaction.TransactionID).Find(&details)
 			for _, detail := range details {
-				db.Model(&models.Product{}).
+				db.Model(&models.Stock{}).
 					Where("product_id = ?", detail.ProductID).
 					Update("stock", gorm.Expr("stock - ?", detail.Quantity))
 			}
