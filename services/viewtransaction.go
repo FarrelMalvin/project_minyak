@@ -57,8 +57,6 @@ func ViewTransaction(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			&transaction.TransactionID,
 			&transaction.UserID,
 			&transaction.UserFullname,
-			&transaction.ProductID,
-			&transaction.ProductName,
 			&transaction.StatusTransaction,
 		); err != nil {
 			log.Printf("Error scanning transaction data: %v", err)

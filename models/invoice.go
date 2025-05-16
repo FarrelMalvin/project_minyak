@@ -1,11 +1,11 @@
 package models
 
 type Invoice struct {
-	InvoiceID       uint    `gorm:"primaryKey"`
-	TransactionID   uint    `gorm:"not null"`
-	TotalPrice      float64 `gorm:"type:decimal(10,2);not null"`
-	MidtransOrderID string  `gorm:"not null;unique"`
-	PaymentMethod   string  `gorm:"type:enum('Cash','Credit Card','Bank Transfer','E-Wallet');not null"`
+	InvoiceID       uint    `gorm:"primaryKey" json:"invoice_id"`
+	TransactionID   uint    `json:"transaction_id"`
+	TotalPrice      float64 `json:"total_price"`
+	MidtransOrderID string  `json:"midtrans_order_id"`
+	PaymentMethod   string  `json:"payment_method"`
 }
 
 func (Invoice) TableName() string {

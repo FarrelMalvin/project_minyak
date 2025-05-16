@@ -53,7 +53,7 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 
 		var carts []models.Cart
 		for _, item := range req.Items {
-			// Validasi manual untuk item kosong
+
 			if item.ProductID == 0 || item.Quantity <= 0 || item.Price <= 0 || item.Name == "" {
 				http.Error(w, "Invalid item data", http.StatusBadRequest)
 				return
@@ -70,10 +70,9 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 			})
 		}
 
-		// Simpan transaksi
 		transaction, err := CreateTransactionWithDetailsBulk(db, userID, customerName, carts)
 		if err != nil {
-			log.Println("❌ Gagal insert transaksi:", err)
+			log.Println("Gagal insert transaksi:", err)
 			http.Error(w, "Gagal menyimpan transaksi", http.StatusInternalServerError)
 			return
 		}
@@ -110,7 +109,7 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 
 		snapResp, err := snapClient.CreateTransaction(snapReq)
 		if err != nil {
-			log.Println("❌ Midtrans error:", err)
+			log.Println(" Midtrans error:", err)
 			http.Error(w, "Midtrans error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
