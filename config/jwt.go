@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -32,7 +34,21 @@ func GenerateJWT(role string, userID int, name string, email string) (string, er
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(JwtSecret)
 }
+func ExtractClaimsFromRequest(r *http.Request) (*UserClaims, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		return nil, errors.New("authorization header missing or invalid")
+	}
 
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+
+	claims, err := ParseToken(tokenStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}
 func ParseToken(tokenString string) (*UserClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return JwtSecret, nil

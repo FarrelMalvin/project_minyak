@@ -55,6 +55,9 @@ func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 		services.ViewTransaction(w, r, db)
 	}).Methods("GET")
 	customerRoutes.HandleFunc("/checkout", services.CheckoutHandler(gormDB)).Methods("POST")
+	customerRoutes.HandleFunc("/cart", services.AddToCart(gormDB)).Methods("POST")         // Tambah item ke cart
+	customerRoutes.HandleFunc("/cart", services.GetUserCart(gormDB)).Methods("GET")        // Ambil semua item cart user
+	customerRoutes.HandleFunc("/cart", services.DeleteCartItems(gormDB)).Methods("DELETE") // Hapus item tertentu dari cart
 
 	// ADMIN bisa akses semua route sales dan manager
 	copyRoutes(adminRoutes, salesRoutes, middleware.AdminMiddleware)

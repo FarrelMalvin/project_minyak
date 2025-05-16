@@ -1,50 +1,41 @@
 package services
 
 import (
-	"fmt"
+	"errors"
 	"project_minyak/models"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-// Insert transaction & detail before calling Midtrans
-func CreateTransactionWithDetails(db *gorm.DB, userID uint, productID uint, fullname, productName string, quantity int, price float64) (*models.Transaction, error) {
-	fmt.Println("📝 Membuat transaksi baru...")
-	fmt.Printf("UserID: %d, ProductID: %d, Name: %s, Product: %s, Qty: %d, Price: %.2f\n",
-		userID, productID, fullname, productName, quantity, price)
+func CreateTransactionWithDetailsBulk(db *gorm.DB, userID uint, fullname string, carts []models.Cart) (*models.Transaction, error) {
+	if len(carts) == 0 {
+		return nil, errors.New("keranjang kosong")
+	}
 
-	// Buat transaksi utama
 	transaction := models.Transaction{
 		UserID:            userID,
-		ProductID:         productID,
+		ProductID:         carts[0].ProductID,
 		UserFullname:      fullname,
-		ProductName:       productName,
-		StatusTransaction: "Pending", // Status default sebelum pembayaran
+		ProductName:       carts[0].Product.ProductName,
+		StatusTransaction: "Pending",
 	}
-
-	// Simpan transaksi utama
 	if err := db.Create(&transaction).Error; err != nil {
-		fmt.Println("❌ Gagal menyimpan transaksi utama:", err)
 		return nil, err
 	}
-	fmt.Println("✅ Transaksi utama disimpan. TransactionID:", transaction.TransactionID)
 
-	// Buat detail transaksi
-	detail := models.TransactionDetail{
-		TransactionID: transaction.TransactionID,
-		ProductID:     productID,
-		Quantity:      quantity,
-		Price:         price,
-		DateTime:      time.Now(),
+	for _, item := range carts {
+		detail := models.TransactionDetail{
+			TransactionID: transaction.TransactionID,
+			ProductID:     item.ProductID,
+			Quantity:      item.Quantity,
+			Price:         item.Product.Price,
+			DateTime:      time.Now(),
+		}
+		if err := db.Create(&detail).Error; err != nil {
+			return nil, err
+		}
 	}
-
-	// Simpan detail transaksi
-	if err := db.Create(&detail).Error; err != nil {
-		fmt.Println("❌ Gagal menyimpan detail transaksi:", err)
-		return nil, err
-	}
-	fmt.Println("✅ Detail transaksi disimpan.")
 
 	return &transaction, nil
 }
