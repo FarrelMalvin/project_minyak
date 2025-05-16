@@ -13,6 +13,7 @@ import (
 type MidtransNotification struct {
 	TransactionStatus string `json:"transaction_status"`
 	OrderID           string `json:"order_id"`
+	PaymentType       string `json:"payment_type"`
 }
 
 func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
@@ -26,7 +27,7 @@ func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
 
 		log.Println("Webhook received. OrderID:", payload.OrderID, "Status:", payload.TransactionStatus)
 
-		orderID := strings.TrimPrefix(payload.OrderID, "ORDER-") // Optional if you add prefix
+		orderID := strings.TrimPrefix(payload.OrderID, "ORDER-")
 		var transaction models.Transaction
 		if err := db.Where("transaction_id = ?", orderID).First(&transaction).Error; err != nil {
 			log.Println("Transaction not found:", err)
@@ -51,6 +52,12 @@ func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
 					Where("product_id = ?", detail.ProductID).
 					Update("stock", gorm.Expr("stock - ?", detail.Quantity))
 			}
+
+			db.Model(&models.Invoice{}).
+				Where("transaction_id = ?", transaction.TransactionID).
+				Updates(map[string]interface{}{
+					"payment_method": strings.Title(strings.ReplaceAll(payload.PaymentType, "_", " ")), // contoh: "bank_transfer" jadi "Bank Transfer"
+				})
 		}
 
 		w.WriteHeader(http.StatusOK)
