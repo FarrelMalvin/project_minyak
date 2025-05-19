@@ -37,16 +37,15 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			&user.Email, &user.Password, &user.Role,
 		)
 		if err != nil {
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			http.Error(w, "Invalid email", http.StatusUnauthorized)
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			http.Error(w, "Invalid password", http.StatusUnauthorized)
 			return
 		}
 
-		// ⬇ Tambahkan nama & email ke JWT
 		tokenString, err := config.GenerateJWT(user.Role, int(user.UserID), user.Firstname+" "+user.Lastname, user.Email)
 		if err != nil {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
