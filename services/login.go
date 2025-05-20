@@ -32,11 +32,13 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 
 		var user models.User
 		query := `SELECT user_id, firstname, lastname, email, password, role FROM "user" WHERE email = $1`
+		log.Println("Executing query with email:", creds.Email)
 		err := db.QueryRow(query, creds.Email).Scan(
 			&user.UserID, &user.Firstname, &user.Lastname,
 			&user.Email, &user.Password, &user.Role,
 		)
 		if err != nil {
+			log.Println("Query error:", err)
 			http.Error(w, "Invalid email", http.StatusUnauthorized)
 			return
 		}

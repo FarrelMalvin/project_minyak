@@ -71,6 +71,23 @@ func InitGormDB() {
 	log.Println("GORM DB initialized successfully")
 }
 
+// CORS middleware
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "") // Ganti "" dengan domain frontend jika ingin lebih aman
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	InitDB()
 	InitGormDB()
@@ -80,5 +97,6 @@ func main() {
 	port := ":9090"
 	fmt.Println("Server running on port", port)
 
-	log.Fatal(http.ListenAndServe(port, r))
+	// Bungkus router dengan CORS middleware
+	log.Fatal(http.ListenAndServe(port, CORSMiddleware(r)))
 }
