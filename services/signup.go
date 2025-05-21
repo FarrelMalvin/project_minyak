@@ -43,7 +43,6 @@ func SignUp(db *sql.DB) http.HandlerFunc {
 		_, err = db.Exec(query, user.Firstname, user.Lastname, user.Email, user.Username, user.Password, user.Role)
 		if err != nil {
 			http.Error(w, "Failed to register user", http.StatusInternalServerError)
-			http.Error(w, fmt.Sprintf("Failed to register user: %v", err), http.StatusInternalServerError)
 
 			return
 		}
