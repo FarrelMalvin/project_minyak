@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,10 +9,10 @@ import (
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"gorm.io/gorm"
 )
 
-// SignUp Handler for user registration
-func CreateAccount(db *sql.DB) http.HandlerFunc {
+func CreateAccount(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -27,28 +26,27 @@ func CreateAccount(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Hash password before storing
+		// Password hashing
 		hashedPassword, err := hashPassword(user.Password)
 		if err != nil {
 			http.Error(w, "Error hashing password", http.StatusInternalServerError)
 			return
 		}
 		user.Password = hashedPassword
+
+		// Format Role: lower to Title case
 		c := cases.Title(language.English)
 		user.Role = c.String(strings.ToLower(user.Role))
 
-		// Validate role input
 		if user.Role != "Admin" && user.Role != "Manager" && user.Role != "Sales" {
 			http.Error(w, "Invalid role", http.StatusBadRequest)
 			return
 		}
 
-		// Insert to database
-		query := `INSERT INTO "user" (email, firstname, lastname, username, password, role) VALUES ($1, $2, $3, $4, $5, $6)`
-		_, err = db.Exec(query, user.Email, user.Firstname, user.Lastname, user.Username, user.Password, user.Role)
-		if err != nil {
+		// Insert using GORM
+		result := db.Create(&user)
+		if result.Error != nil {
 			http.Error(w, "Failed to register user", http.StatusInternalServerError)
-			fmt.Fprintf(w, "Error: %v", err)
 			return
 		}
 

@@ -10,8 +10,8 @@ type TransactionDetail struct {
 	Price               float64   `gorm:"type:decimal(10,2);not null"`
 	DateTime            time.Time `gorm:"default:CURRENT_TIMESTAMP"`
 
-	Product     Product     `gorm:"foreignKey:ProductID"`
-	Transaction Transaction `gorm:"foreignKey:TransactionID"`
+	Product     Product     `gorm:"foreignKey:ProductID;references:ProductID"`
+	Transaction Transaction `gorm:"foreignKey:TransactionID" json:"-"`
 }
 
 func (TransactionDetail) TableName() string {

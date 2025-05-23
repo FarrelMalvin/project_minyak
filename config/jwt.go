@@ -13,14 +13,14 @@ import (
 var JwtSecret = []byte("secret_key")
 
 type UserClaims struct {
-	UserID int    `json:"user_id"`
+	UserID uint   `json:"user_id"` // ubah dari int ke uint
 	Role   string `json:"role"`
 	Name   string `json:"name"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(role string, userID int, name string, email string) (string, error) {
+func GenerateJWT(role string, userID uint, name string, email string) (string, error) {
 	claims := UserClaims{
 		Role:   role,
 		UserID: userID,
@@ -34,6 +34,7 @@ func GenerateJWT(role string, userID int, name string, email string) (string, er
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(JwtSecret)
 }
+
 func ExtractClaimsFromRequest(r *http.Request) (*UserClaims, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -49,6 +50,7 @@ func ExtractClaimsFromRequest(r *http.Request) (*UserClaims, error) {
 
 	return claims, nil
 }
+
 func ParseToken(tokenString string) (*UserClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return JwtSecret, nil

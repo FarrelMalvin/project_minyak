@@ -15,29 +15,25 @@ func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 	router := mux.NewRouter()
 
 	// Auth routes
-	router.HandleFunc("/signup", services.SignUp(db)).Methods("POST")
+	router.HandleFunc("/signup", services.SignUp(gormDB)).Methods("POST")
 	router.HandleFunc("/login", services.LoginHandler(db)).Methods("POST")
 	router.HandleFunc("/midtrans/webhook", services.MidtransWebhookHandler(gormDB)).Methods("POST")
 
 	// ADMIN ROUTES
 	adminRoutes := router.PathPrefix("/admin").Subrouter()
-	adminRoutes.Handle("/create-account", middleware.AdminMiddleware(http.HandlerFunc(services.CreateAccount(db)))).Methods("POST")
+	adminRoutes.Handle("/create-account", middleware.AdminMiddleware(http.HandlerFunc(services.CreateAccount(gormDB)))).Methods("POST")
 
 	// SALES ROUTES
 	salesRoutes := router.PathPrefix("/sales").Subrouter()
 	salesRoutes.Use(middleware.SalesMiddleware) // if you have one
 	salesRoutes.HandleFunc("/stocks", func(w http.ResponseWriter, r *http.Request) {
-		services.InsertProductAndStock(w, r, db)
+		services.InsertProductAndStock(w, r, gormDB)
 	}).Methods("POST")
 	salesRoutes.HandleFunc("/stocks", func(w http.ResponseWriter, r *http.Request) {
-		services.UpdateProductStock(w, r, db)
+		services.UpdateProductStock(w, r, gormDB)
 	}).Methods("PUT")
-	salesRoutes.HandleFunc("/rawmaterial", func(w http.ResponseWriter, r *http.Request) {
-		services.InsertRawMaterial(w, r, db)
-	}).Methods("POST")
-	salesRoutes.HandleFunc("/rawmaterial", func(w http.ResponseWriter, r *http.Request) {
-		services.GetRawMaterialsSorted(w, r, db)
-	}).Methods("GET")
+	salesRoutes.HandleFunc("/rawmaterial", services.InsertRawMaterial(gormDB)).Methods("POST")
+	salesRoutes.HandleFunc("/rawmaterial", services.GetRawMaterialsSorted(gormDB)).Methods("GET")
 
 	// MANAGER ROUTES
 	managerRoutes := router.PathPrefix("/manager").Subrouter()
@@ -51,9 +47,8 @@ func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 	customerRoutes := router.PathPrefix("/customer").Subrouter()
 	customerRoutes.Use(middleware.CustomerMiddleware)
 
-	customerRoutes.HandleFunc("/transactions", func(w http.ResponseWriter, r *http.Request) {
-		services.ViewTransaction(w, r, db)
-	}).Methods("GET")
+	customerRoutes.HandleFunc("/transactions/summary", services.ViewTransactionSummary(gormDB)).Methods("GET")
+	customerRoutes.HandleFunc("/transactions/detail", services.ViewTransactionDetailByID(gormDB)).Methods("GET")
 	customerRoutes.HandleFunc("/checkout", services.CheckoutHandler(gormDB)).Methods("POST")
 	customerRoutes.HandleFunc("/cart", services.AddToCart(gormDB)).Methods("POST")         // Tambah item ke cart
 	customerRoutes.HandleFunc("/cart", services.GetUserCart(gormDB)).Methods("GET")        // Ambil semua item cart user

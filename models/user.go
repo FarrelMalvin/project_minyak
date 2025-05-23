@@ -9,3 +9,7 @@ type User struct {
 	Lastname  string
 	Role      string `gorm:"type:enum('Customer','Manager','Sales','Admin');not null"`
 }
+
+func (User) TableName() string {
+	return "user"
+}

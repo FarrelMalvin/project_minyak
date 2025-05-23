@@ -1,14 +1,14 @@
 package services
 
 import (
-	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 	"project_minyak/models"
+
+	"gorm.io/gorm"
 )
 
-func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -19,73 +19,55 @@ func InsertProductAndStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		Stock   models.Stock   `json:"stock"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Validate stock value
 	if requestData.Stock.Stock <= 0 {
 		http.Error(w, "Stock quantity must be greater than zero", http.StatusBadRequest)
 		return
 	}
 
-	tx, err := db.Begin()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Insert product
+		if err := tx.Create(&requestData.Product).Error; err != nil {
+			return err
+		}
+
+		// Assign foreign key
+		requestData.Stock.ProductID = requestData.Product.ProductID
+
+		// Insert stock
+		if err := tx.Create(&requestData.Stock).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		http.Error(w, "Failed to begin transaction", http.StatusInternalServerError)
+		http.Error(w, "Failed to insert product and stock", http.StatusInternalServerError)
 		return
 	}
 
-	// Insert product into the database using RETURNING
-	productQuery := `INSERT INTO "product" (Product_name, price, note) VALUES ($1, $2, $3) RETURNING product_id`
-	var productID uint
-	err = tx.QueryRow(productQuery, requestData.Product.ProductName, requestData.Product.Price, requestData.Product.Note).Scan(&productID)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("Failed to insert product: %v", err)
-		http.Error(w, "Failed to insert product", http.StatusInternalServerError)
-		return
-	}
-
-	requestData.Stock.ProductID = productID
-
-	// Insert stock into the database
-	stockQuery := `INSERT INTO "stock" (Product_ID, Stock) VALUES ($1, $2)`
-	_, err = tx.Exec(stockQuery, requestData.Stock.ProductID, requestData.Stock.Stock)
-	if err != nil {
-		tx.Rollback()
-		log.Printf("Failed to insert stock: %v", err)
-		http.Error(w, "Failed to insert stock", http.StatusInternalServerError)
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
-		return
-	}
-
-	// Return a more detailed response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":        "Product and stock inserted successfully",
-		"product_id":     productID,
+		"product_id":     requestData.Product.ProductID,
 		"stock_quantity": requestData.Stock.Stock,
 	})
 }
 
-func UpdateProductStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func UpdateProductStock(w http.ResponseWriter, r *http.Request, db *gorm.DB) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var stock models.Stock
-
-	err := json.NewDecoder(r.Body).Decode(&stock)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&stock); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -95,10 +77,9 @@ func UpdateProductStock(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	query := `UPDATE stock SET stock = $1 WHERE product_id = $2`
-
-	_, err = db.Exec(query, stock.Stock, stock.ProductID)
-	if err != nil {
+	if err := db.Model(&models.Stock{}).
+		Where("product_id = ?", stock.ProductID).
+		Update("stock", stock.Stock).Error; err != nil {
 		http.Error(w, "Failed to update stock", http.StatusInternalServerError)
 		return
 	}

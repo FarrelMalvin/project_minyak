@@ -32,13 +32,11 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 
 		var user models.User
 		query := `SELECT user_id, firstname, lastname, email, password, role FROM "user" WHERE email = $1`
-		log.Println("Executing query with email:", creds.Email)
 		err := db.QueryRow(query, creds.Email).Scan(
 			&user.UserID, &user.Firstname, &user.Lastname,
 			&user.Email, &user.Password, &user.Role,
 		)
 		if err != nil {
-			log.Println("Query error:", err)
 			http.Error(w, "Invalid email", http.StatusUnauthorized)
 			return
 		}
@@ -48,7 +46,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		tokenString, err := config.GenerateJWT(user.Role, int(user.UserID), user.Firstname+" "+user.Lastname, user.Email)
+		tokenString, err := config.GenerateJWT(user.Role, uint(user.UserID), user.Firstname+" "+user.Lastname, user.Email)
 		if err != nil {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 			return

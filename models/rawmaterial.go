@@ -6,3 +6,7 @@ type RawMaterial struct {
 	Price           float64 `gorm:"type:decimal(10,2);not null" json:"price"`
 	Supplier        string  `gorm:"not null" json:"supplier"`
 }
+
+func (RawMaterial) TableName() string {
+	return "rawmaterial"
+}
