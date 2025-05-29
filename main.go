@@ -37,6 +37,10 @@ func InitDB() {
 		log.Fatal("Error connecting to database:", err)
 	}
 
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(0)
+
 	err = db.Ping()
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
@@ -67,6 +71,14 @@ func InitGormDB() {
 		log.Fatal("Failed to connect to GORM DB:", err)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to get sql.DB from GORM:", err)
+	}
+
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(0)
 	GormDB = db
 	log.Println("GORM DB initialized successfully")
 }

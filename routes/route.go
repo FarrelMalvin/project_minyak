@@ -22,13 +22,16 @@ func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 	// ADMIN ROUTES
 	adminRoutes := router.PathPrefix("/admin").Subrouter()
 	adminRoutes.Handle("/create-account", middleware.AdminMiddleware(http.HandlerFunc(services.CreateAccount(gormDB)))).Methods("POST")
+	adminRoutes.Handle("/viewuser", middleware.AdminMiddleware(http.HandlerFunc(services.ViewUsers(gormDB)))).Methods("GET")
+	adminRoutes.Handle("/delete-user", middleware.AdminMiddleware(http.HandlerFunc(services.DeleteUser(gormDB)))).Methods("DELETE")
 
 	// SALES ROUTES
 	salesRoutes := router.PathPrefix("/sales").Subrouter()
-	salesRoutes.Use(middleware.SalesMiddleware) // if you have one
+	salesRoutes.Use(middleware.SalesMiddleware)
 	salesRoutes.HandleFunc("/stocks", func(w http.ResponseWriter, r *http.Request) {
 		services.InsertProductAndStock(w, r, gormDB)
 	}).Methods("POST")
+	router.HandleFunc("/stocks", services.GetStock(gormDB)).Methods("GET")
 	salesRoutes.HandleFunc("/stocks", func(w http.ResponseWriter, r *http.Request) {
 		services.UpdateProductStock(w, r, gormDB)
 	}).Methods("PUT")

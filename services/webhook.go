@@ -35,7 +35,6 @@ func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		// Update status jika berhasil
 		if payload.TransactionStatus == "capture" || payload.TransactionStatus == "settlement" {
 			transaction.StatusTransaction = "Completed"
 			if err := db.Save(&transaction).Error; err != nil {
@@ -44,7 +43,6 @@ func MidtransWebhookHandler(db *gorm.DB) http.HandlerFunc {
 				return
 			}
 
-			// Kurangi stok produk
 			var details []models.TransactionDetail
 			db.Where("transaction_id = ?", transaction.TransactionID).Find(&details)
 			for _, detail := range details {

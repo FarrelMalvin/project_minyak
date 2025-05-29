@@ -8,5 +8,5 @@ type RawMaterial struct {
 }
 
 func (RawMaterial) TableName() string {
-	return "rawmaterial"
+	return "raw_material"
 }
