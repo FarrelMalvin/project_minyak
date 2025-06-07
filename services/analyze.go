@@ -7,14 +7,17 @@ import (
 	"log"
 	"net/http"
 	"project_minyak/models"
+	"project_minyak/utils"
 	"sort"
 	"strings"
-	"time"
 )
 
 func AnalyzeAllProductsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("AnalyzeAllProductsHandler HIT 🚀")
+		startDate := r.URL.Query().Get("start")
+		endDate := r.URL.Query().Get("end")
+
 		var recaps []models.Recap
 		if err := json.NewDecoder(r.Body).Decode(&recaps); err != nil {
 			http.Error(w, "Invalid data", http.StatusBadRequest)
@@ -28,25 +31,45 @@ func AnalyzeAllProductsHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Parse result Gemini jadi struct
-		analytics := ParseGeminiResult(result)
+		// Parse ke struct
+		analytics, summary, recommendation := ParseGeminiResult(result)
 		if analytics == nil {
 			http.Error(w, "Failed to parse Gemini response", http.StatusInternalServerError)
 			return
 		}
 
-		// Simpan ke DB
-		if err := SaveParetoAnalysisToDB(db, analytics); err != nil {
-			http.Error(w, "Failed to save analysis: "+err.Error(), http.StatusInternalServerError)
+		// Simpan hasil batch
+		batchID, err := SaveAnalysisBatch(db, startDate, endDate, summary, recommendation)
+		if err != nil {
+			http.Error(w, "Failed to save batch summary: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// Kirim hasil balik ke frontend juga kalau perlu
-		json.NewEncoder(w).Encode(analytics)
+		// Simpan ke pareto_analysis_result
+		if err := SaveParetoResultToDB(db, batchID, analytics); err != nil {
+			http.Error(w, "Failed to save pareto analysis result: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"summary":        summary,
+			"recommendation": recommendation,
+			"details":        analytics,
+		})
 	}
 }
 
-func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
+func SaveAnalysisBatch(db *sql.DB, start, end, summary, recommendation string) (int, error) {
+	var batchID int
+	err := db.QueryRow(`
+		INSERT INTO pareto_analysis_batch (start_date, end_date, summary, recommendation, created_at)
+		VALUES ($1, $2, $3, $4, NOW()) RETURNING batch_id`,
+		start, end, summary, recommendation,
+	).Scan(&batchID)
+	return batchID, err
+}
+
+func SaveParetoResultToDB(db *sql.DB, batchID int, analytics []models.AnalyticData) error {
 	var totalRevenue float64
 	type temp struct {
 		data    models.AnalyticData
@@ -55,34 +78,29 @@ func SaveParetoAnalysisToDB(db *sql.DB, analytics []models.AnalyticData) error {
 	var tempData []temp
 
 	for _, a := range analytics {
-		var revenue float64
-		_, err := fmt.Sscanf(a.AnalyticResult, `{"Product ID":%d,"Product Name":"%s","Total Quantity Sold":%d,"Total Revenue":%f,"Profit":%f,"Top 20%%":%t}`,
-			new(int), new(string), new(int), &revenue, new(float64), new(bool))
-		if err != nil {
-			log.Printf("Failed to parse analytic result for product %d: %v", a.ProductID, err)
-			revenue = a.Revenue // fallback ke nilai langsung
-		}
-		totalRevenue += revenue
-		tempData = append(tempData, temp{data: a, revenue: revenue})
+		totalRevenue += a.Revenue
+		tempData = append(tempData, temp{data: a, revenue: a.Revenue})
 	}
 
 	sort.Slice(tempData, func(i, j int) bool {
 		return tempData[i].revenue > tempData[j].revenue
 	})
 
-	var cumulative float64
 	for _, t := range tempData {
 		contribution := (t.revenue / totalRevenue) * 100
-		cumulative += contribution
-		isTop := cumulative <= 80.0 // Pareto: 80/20 rule
+
+		// GUNAKAN NILAI DARI GEMINI
+		isTop := t.data.IsTop20
 
 		_, err := db.Exec(`
-			INSERT INTO "analytic" (Product_ID, Analytic_result, Contribution, Is_Top_20, Analytic_time)
-			VALUES ($1, $2, $3, $4, $5)`,
-			t.data.ProductID, t.data.AnalyticResult, contribution, isTop, time.Now(),
+			INSERT INTO pareto_analysis_result
+			(batch_id, product_id, product_name, total_quantity, total_revenue, contribution, is_top_20)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			batchID, t.data.ProductID, t.data.ProductName, t.data.Quantity,
+			t.data.Revenue, contribution, isTop,
 		)
 		if err != nil {
-			log.Printf("Error inserting analytic data for product %d: %v", t.data.ProductID, err)
+			log.Printf("Error inserting pareto result for product %d: %v", t.data.ProductID, err)
 			return err
 		}
 	}
@@ -118,7 +136,7 @@ func cleanJSONResult(result string) string {
 	return ""
 }
 
-func ParseGeminiResult(result string) []models.AnalyticData {
+func ParseGeminiResult(result string) ([]models.AnalyticData, string, string) {
 	result = cleanJSONResult(result)
 	log.Println("Gemini RAW Response:", result)
 
@@ -126,17 +144,29 @@ func ParseGeminiResult(result string) []models.AnalyticData {
 	err := json.Unmarshal([]byte(result), &raw)
 	if err != nil {
 		log.Println("Failed to parse Gemini result as JSON:", err)
-		return nil
+		return nil, "", ""
 	}
 
 	var data []models.AnalyticData
+	var summaryList []string
+	var recommendationList []string
+
 	for _, item := range raw {
-		prodID := toInt(item["Product ID"])
-		prodName := toString(item["Product Name"])
-		quantity := toInt(item["Total Quantity Sold"])
-		revenue := toFloat(item["Total Revenue"])
-		profit := toFloat(item["Profit"])
-		isTop := toBool(item["Top 20%"])
+		prodID := utils.ToInt(item["Product ID"])
+		prodName := utils.ToString(item["Product Name"])
+		quantity := utils.ToInt(item["Total Quantity Sold"])
+		revenue := utils.ToFloat(item["Total Revenue"])
+		isTop := utils.ToBool(item["Top 20%"])
+
+		s := utils.ToString(item["Summary"])
+		r := utils.ToString(item["Recommendation"])
+
+		if s != "" {
+			summaryList = append(summaryList, fmt.Sprintf("%s: %s", prodName, s))
+		}
+		if r != "" {
+			recommendationList = append(recommendationList, fmt.Sprintf("%s: %s", prodName, r))
+		}
 
 		resultStr, _ := json.Marshal(item)
 		data = append(data, models.AnalyticData{
@@ -144,38 +174,13 @@ func ParseGeminiResult(result string) []models.AnalyticData {
 			ProductName:    prodName,
 			Quantity:       quantity,
 			Revenue:        revenue,
-			Profit:         profit,
 			IsTop20:        isTop,
 			AnalyticResult: string(resultStr),
 		})
 	}
-	return data
-}
 
-func toInt(v interface{}) int {
-	if val, ok := v.(float64); ok {
-		return int(val)
-	}
-	return 0
-}
+	summary := strings.Join(summaryList, "\n\n")
+	recommendation := strings.Join(recommendationList, "\n\n")
 
-func toFloat(v interface{}) float64 {
-	if val, ok := v.(float64); ok {
-		return val
-	}
-	return 0
-}
-
-func toString(v interface{}) string {
-	if val, ok := v.(string); ok {
-		return val
-	}
-	return ""
-}
-
-func toBool(v interface{}) bool {
-	if val, ok := v.(bool); ok {
-		return val
-	}
-	return false
+	return data, summary, recommendation
 }

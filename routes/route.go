@@ -42,6 +42,7 @@ func SetupRoutes(db *sql.DB, gormDB *gorm.DB) *mux.Router {
 	managerRoutes := router.PathPrefix("/manager").Subrouter()
 	managerRoutes.Use(middleware.ManagerMiddleware) // if you have one
 	managerRoutes.HandleFunc("/gemini/analyze", services.AnalyzeAllProductsHandler(db)).Methods("POST")
+	managerRoutes.HandleFunc("/analyze-view", services.GetParetoAnalysisHandler(gormDB)).Methods("GET")
 	managerRoutes.HandleFunc("/transaction-view", func(w http.ResponseWriter, r *http.Request) {
 		services.SalesRecap(w, r, db)
 	}).Methods("GET")

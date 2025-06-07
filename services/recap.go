@@ -19,14 +19,14 @@ func SalesRecap(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			SUM(td.quantity) as quantity_sold,
 			p.Price,
 			SUM(td.quantity) * p.Price as total_sales
-		FROM transaction_details td
+		FROM transaction_detail td
 		JOIN transaction t ON td.Transaction_ID = t.Transaction_ID
 		JOIN product p ON td.Product_ID = p.Product_ID
 	`
 
 	var args []interface{}
 	if startDate != "" && endDate != "" {
-		query += " WHERE DATE(td.date_time) BETWEEN ? AND ?"
+		query += " WHERE DATE(td.date_time) BETWEEN $1 AND $2 "
 		args = append(args, startDate, endDate)
 	}
 

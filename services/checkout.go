@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"project_minyak/config"
@@ -18,6 +19,14 @@ import (
 
 func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("Panic recovered: %v\nStack: %s", rec, debug.Stack())
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+
+		// Ambil token dari header Authorization
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			http.Error(w, "Unauthorized: Missing token", http.StatusUnauthorized)
@@ -29,6 +38,7 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 			http.Error(w, "Invalid token: "+err.Error(), http.StatusUnauthorized)
 			return
 		}
+
 		userID := uint(claims.UserID)
 		customerName := claims.Name
 		customerEmail := claims.Email
@@ -45,15 +55,14 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-
 		if len(req.Items) == 0 {
 			http.Error(w, "No items provided", http.StatusBadRequest)
 			return
 		}
 
+		// Validasi item & buat list cart
 		var carts []models.Cart
 		for _, item := range req.Items {
-
 			if item.ProductID == 0 || item.Quantity <= 0 || item.Price <= 0 || item.Name == "" {
 				http.Error(w, "Invalid item data", http.StatusBadRequest)
 				return
@@ -65,17 +74,21 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 				Product: models.Product{
 					ProductID:   item.ProductID,
 					ProductName: item.Name,
-					Price:       float64(item.Price),
+					Price:       item.Price,
 				},
 			})
 		}
 
+		// Simpan transaksi ke DB
 		transaction, err := CreateTransactionWithDetailsBulk(db, userID, customerName, carts)
 		if err != nil {
 			log.Println("Gagal insert transaksi:", err)
 			http.Error(w, "Gagal menyimpan transaksi", http.StatusInternalServerError)
 			return
 		}
+
+		// Midtrans
+		log.Printf("transaction object: %+v\n", transaction)
 
 		orderID := fmt.Sprintf("ORDER-%d", transaction.TransactionID)
 		var snapClient snap.Client
@@ -86,7 +99,6 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 		for _, item := range carts {
 			itemTotal := int64(item.Product.Price) * int64(item.Quantity)
 			totalAmount += itemTotal
-
 			items = append(items, midtrans.ItemDetails{
 				ID:    fmt.Sprintf("%d", item.ProductID),
 				Price: int64(item.Product.Price),
@@ -108,17 +120,28 @@ func CheckoutHandler(db *gorm.DB) http.HandlerFunc {
 		}
 
 		snapResp, err := snapClient.CreateTransaction(snapReq)
-		if err != nil {
-			log.Println(" Midtrans error:", err)
-			http.Error(w, "Midtrans error: "+err.Error(), http.StatusInternalServerError)
+		if snapResp == nil {
+			log.Println("snapResp nil")
+			http.Error(w, "Midtrans response nil", http.StatusInternalServerError)
+			return
+		}
+		if snapResp.Token == "" || snapResp.RedirectURL == "" {
+			log.Printf("snapResp invalid: %+v\n", snapResp)
+			http.Error(w, "Gagal membuat transaksi Midtrans", http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		response := map[string]string{
 			"message":      "Transaksi berhasil dibuat",
 			"token":        snapResp.Token,
 			"redirect_url": snapResp.RedirectURL,
-		})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Println("Gagal encode response:", err)
+			http.Error(w, "Gagal mengirim response", http.StatusInternalServerError)
+		}
+
 	}
 }

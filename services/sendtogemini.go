@@ -23,8 +23,9 @@ Berikan hasil *hanya* dalam bentuk JSON array seperti contoh berikut, tanpa penj
     "Product Name": "Contoh",
     "Total Quantity Sold": 10,
     "Total Revenue": 10000.0,
-    "Profit": 2000.0,
-    "Top 20%": true
+    "Top 20%": true,
+	"Summary": "Ringkasan singkat dalam 1 paragraf",
+  "Recommendation": "Rekomendasi bisnis berdasarkan analisis"
   },
   ...
 ]`
